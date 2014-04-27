@@ -1646,7 +1646,7 @@ static int __init aat2870_probe(struct i2c_client *i2c_dev,
 }
 
 
-static struct i2c_driver aat2870_driver = {
+static struct i2c_driver aat2870_driver __refdata = {
 	.probe		= aat2870_probe,
 	.remove		= aat2870_remove,
 //#ifndef CONFIG_HAS_EARLYSUSPEND 	/*LG_CHANGE_S lee.hyunji@lge.com 20110420 Doesn't working ASL mode after resume*/

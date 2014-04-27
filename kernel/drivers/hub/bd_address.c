@@ -97,7 +97,7 @@ static int bd_address_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver bd_address_driver = {
+static struct platform_driver bd_address_driver __refdata = {
 	.probe		= bd_address_probe,
 	.remove		= __exit_p(bd_address_remove),
 	.suspend	= bd_address_suspend,

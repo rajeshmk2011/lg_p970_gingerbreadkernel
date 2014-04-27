@@ -237,7 +237,7 @@ static int mtc_eta_logger_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver mtc_eta_logger_driver = {
+static struct platform_driver mtc_eta_logger_driver __refdata = {
 	.driver = {
 		.name = "lge_mtc_eta_logger",
 		.owner = THIS_MODULE,

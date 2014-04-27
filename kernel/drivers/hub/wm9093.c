@@ -1241,7 +1241,7 @@ static const struct i2c_device_id wm9093_ids[] = {
 	{ /* end of list */ },
 };
 
-static struct i2c_driver wm9093_i2c_driver = {
+static struct i2c_driver wm9093_i2c_driver __refdata = {
 	.probe = wm9093_probe,
 	.remove = wm9093_remove,
 	//junyeop.kim@lge.com, codec power enable for vpll2 [START_LGE]

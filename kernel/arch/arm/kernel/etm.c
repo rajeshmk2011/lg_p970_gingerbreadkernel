@@ -496,7 +496,7 @@ static struct amba_id etb_ids[] = {
 	{ 0, 0 },
 };
 
-static struct amba_driver etb_driver = {
+static struct amba_driver __refdata etb_driver = {
 	.drv		= {
 		.name	= "etb",
 		.owner	= THIS_MODULE,
@@ -832,7 +832,7 @@ static struct amba_id etm_ids[] = {
 	{ 0, 0 },
 };
 
-static struct amba_driver etm_driver = {
+static struct amba_driver __refdata etm_driver = {
 	.drv		= {
 		.name   = "etm",
 		.owner  = THIS_MODULE,

@@ -1114,7 +1114,6 @@ EXPORT_SYMBOL(vbus_irq_muic_handler);
 
 DEVICE_ATTR(charging_mode, 0664, NULL, muic_store_charging_mode);
 /* Shutdown issue at the case of USB booting [kyungyoon.kim@lge.com] 2010-12-25 */
-
 DEVICE_ATTR(wake_lock, 0664, NULL, muic_store_wake_lock);
 /* B-Prj Power off charging [kyungyoon.kim@lge.com] 2010-12-15 */
 /*
@@ -1284,7 +1283,7 @@ static const struct i2c_device_id muic_ids[] = {
  */
 //MODULE_MUIC_TABLE(i2c, muic_ids);
 
-static struct i2c_driver muic_driver = {
+static struct i2c_driver muic_driver __refdata = {
 	.probe      = muic_probe,
 	.remove	    = muic_remove,
 	.suspend    = muic_suspend,

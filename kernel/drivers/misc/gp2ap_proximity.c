@@ -391,7 +391,8 @@ static void hub_proxi_late_resume(struct early_suspend *handler);
 #endif  /* 20110304 seven.kim@lge.com late_resume_lcd [END] */
 /* LGE_CHANGE_E, hyun.seungjin@lge.com, 2011-04-13, Sync with P970 */
 
-static int __init hub_proxi_probe(struct i2c_client *client, const struct i2c_device_id *id)
+//rajesh remove __init
+static int hub_proxi_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret;
 	struct hub_proxi_data *data;

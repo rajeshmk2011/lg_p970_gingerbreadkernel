@@ -247,7 +247,7 @@ static const struct i2c_device_id lp8720_ids[] = {
 	{ /* end of list */ },
 };
 
-static struct i2c_driver subpm_lp8720_driver = {
+static struct i2c_driver subpm_lp8720_driver __refdata = {
 	.probe		= lp8720_probe,
 	.remove		= lp8720_remove,
 	.suspend	= lp8720_suspend,

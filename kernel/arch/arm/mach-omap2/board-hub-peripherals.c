@@ -52,6 +52,7 @@
 /* LGE_CHANGE_E [jjlee05@lge.com] 2010-06-28 */
 
 #include "mmc-twl4030.h"
+#include "twl4030.h" //rajesh
 #include "mux.h"
 #include "pm.h"
 
@@ -494,6 +495,7 @@ static struct twl4030_resconfig twl4030_rconfig[] = {
 };
 #endif
 
+#if 0 //rajesh duplicte in twl4030.c
 static struct twl4030_script sleep_on_script = {
 	.script = sleep_on_seq,
 	.size = ARRAY_SIZE(sleep_on_seq),
@@ -524,12 +526,16 @@ static struct twl4030_script *twl4030_scripts[] = {
 	&wakeup_p3_script,
 	&wrst_script,
 };
+#endif
 
 static struct twl4030_power_data hub_t2scripts_data = {
+#if 0 //rajesh call twl4030_get_scripts
 	.scripts = twl4030_scripts,
 	.num = ARRAY_SIZE(twl4030_scripts),
 	.resource_config = twl4030_rconfig,
+#endif
 };
+
 
 static struct regulator_consumer_supply hub_vmmc1_supply = {
 	.supply		= "vmmc1",
@@ -645,7 +651,7 @@ static struct regulator_init_data hub_vaux2= {
 	.consumer_supplies      = &heaven_vaux2_supply,
 };
 
-static struct omap2_hsmmc_info mmc[] __initdata = {
+static struct omap2_hsmmc_info mmc[] = {
 	{
 		.name		= "sdcard",
 		.mmc		= 1,
@@ -1022,6 +1028,7 @@ static struct i2c_board_info __initdata hub_i2c_bus3_info[] = {
 
 static int __init omap_i2c_init(void)
 {
+        twl4030_get_scripts(&hub_t2scripts_data);
 	omap_register_i2c_bus(1, 400, NULL, hub_i2c_boardinfo,
 			ARRAY_SIZE(hub_i2c_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL,hub_i2c_bus2_info,

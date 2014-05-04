@@ -593,10 +593,13 @@ static int __init parse_tag_revision(const struct tag *tag)
 
 __tagtable(ATAG_REVISION, parse_tag_revision);
 
+extern void manipulate_cmdline(char *default_command_line,const char *tag_command_line, size_t size);
+
 #ifndef CONFIG_CMDLINE_FORCE
 static int __init parse_tag_cmdline(const struct tag *tag)
 {
 	strlcpy(default_command_line, tag->u.cmdline.cmdline, COMMAND_LINE_SIZE);
+	//manipulate_cmdline(default_command_line, tag->u.cmdline.cmdline,COMMAND_LINE_SIZE);
 	return 0;
 }
 

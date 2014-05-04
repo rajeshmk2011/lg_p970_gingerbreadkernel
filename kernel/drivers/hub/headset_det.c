@@ -11,21 +11,28 @@
 #include <linux/switch.h>
 #include <linux/workqueue.h>
 #include <mach/hub_headset_det.h>
-#include <linux/input.h>		/* LGE_CHANGE_S [luckyjun77@lge.com] 2009-11-25, hub rev A hook key */    
+#include <linux/input.h>		/* LGE_CHANGE_S [] 2009-11-25, hub rev A hook key */    
 
-#include <linux/earlysuspend.h>	// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
-// 20100825 junyeop.kim@lge.com, mic bias LDO control test [START_LGE]
+#include <linux/earlysuspend.h>	// 20100603 , headset suspend/resume [START_LGE]
+// 20100825 , mic bias LDO control test [START_LGE]
 #if 1
 #include "../mux.h"
 #define MIC_BIAS_LDO	60
 #endif
-// 20100825 junyeop.kim@lge.com, mic bias LDO control test [END_LGE]
+// 20100825 , mic bias LDO control test [END_LGE]
 
 struct headset_switch_data	*headset_sw_data;
 
 unsigned int headset_status = 0;
 headset_type_enum headset_type = HUB_NONE;
 unsigned int hook_status = HOOK_RELEASED;
+
+/* 20110215  for EarJack & Hook Action [START] */
+int type_detection_tim = 600;	
+int hook_detection_tim = 50; 
+int IsHeadsetInserted = 0; 
+/* 20110215  for EarJack & Hook Action [START] */
+
 
 struct headset_switch_data {
 	struct switch_dev sdev;
@@ -40,50 +47,50 @@ struct headset_switch_data {
 	struct work_struct work;
 	struct delayed_work delayed_work;
 	struct delayed_work hook_delayed_work;
-	struct input_dev *ip_dev;		/* LGE_CHANGE_S [luckyjun77@lge.com] 2009-11-25, heaven rev A hook key */    
-	struct early_suspend early_suspend;		// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
-	int is_suspend;					// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
+	struct input_dev *ip_dev;		/* LGE_CHANGE_S [] 2009-11-25, heaven rev A hook key */    
+	struct early_suspend early_suspend;		// 20100603 , headset suspend/resume [START_LGE]
+	int is_suspend;					// 20100603 , headset suspend/resume [START_LGE]
 #if defined(CONFIG_MACH_LGE_HUB_REV_A)
 	//nothing
 #else
-	unsigned dmb_ant_gpio;				// 20100814 junyeop.kim@lge.com, dmb ant gpio [START_LGE]
+	unsigned dmb_ant_gpio;				// 20100814 , dmb ant gpio [START_LGE]
     int dmb_ant_irq;
     int dmb_ant_detected;
 #endif
 };
 
-// 20100831 jh.koo@lge.com for TEST MODE [START_LGE]
+// 20100831  for TEST MODE [START_LGE]
 extern int get_test_mode(void);
 extern void write_gkpd_value(int value);
-// 20100831 jh.koo@lge.com for TEST MODE [END_LGE]
+// 20100831  for TEST MODE [END_LGE]
 
 #if defined(CONFIG_HUB_AMP_WM9093)
-extern unsigned int get_wm9093_mode(void);		//20101004 junyeop.kim@lge.com, ear sense wakable setting
+extern unsigned int get_wm9093_mode(void);		//20101004 , ear sense wakable setting
 #endif
 
-// 20101128 junyeop.kim@lge.com, dmb ant status[START_LGE]
+// 20101128 , dmb ant status[START_LGE]
 extern void set_dmb_status(int state);
-// 20101128 junyeop.kim@lge.com, dmb ant status[END_LGE]
+// 20101128 , dmb ant status[END_LGE]
 
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
+// 20100603 , headset suspend/resume [START_LGE]
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void headsetdet_early_suspend(struct early_suspend *h);
 static void headsetdet_late_resume(struct early_suspend *h);
 extern int get_twl4030_status(void);
 #endif
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [END_LGE]
+// 20100603 , headset suspend/resume [END_LGE]
 
 
-// 20100608 junyeop.kim@lge.com, headset event inform for hdmi [START_LGE]
+// 20100608 , headset event inform for hdmi [START_LGE]
 #if 1
 #if defined(CONFIG_NXP_HDMI)
 extern int Hdmi_getEnable(void);
 extern int Hdmi_setAudioMute(bool audioMute);
-extern int is_hdmi_enabled();	//junyeop.kim@lge.com
+extern int is_hdmi_enabled();	//
 #endif
 #endif
-// 20100608 junyeop.kim@lge.com, headset event inform for hdmi [END_LGE]
+// 20100608 , headset event inform for hdmi [END_LGE]
 
 unsigned int get_headset_type(void)
 {
@@ -101,23 +108,24 @@ int get_dmb_status(void)
 }
 EXPORT_SYMBOL(get_dmb_status);
 
-int type_detection_tim = 100; 	
 
 extern void hub_headsetdet_bias(int bias);
 
 static void headset_det_work(struct work_struct *work)
 {
 	headset_status = gpio_get_value(headset_sw_data->gpio); 
+	//printk("[JIWON] headset_det_work start\n");
 
 	if(headset_status == 0)
 	{
-#if 1	// 20100825 junyeop.kim@lge.com, mic bias LDO control test [START_LGE]
+	//printk("[JIWON] headset_det_work : no headset\n");
+#if 1	// 20100825 , mic bias LDO control test [START_LGE]
 		gpio_direction_output(MIC_BIAS_LDO, 0);
 		gpio_set_value(MIC_BIAS_LDO, 0);
-#endif	// 20100825 junyeop.kim@lge.com, mic bias LDO control test [END_LGE]
+#endif	// 20100825 , mic bias LDO control test [END_LGE]
 	
 		//hub_headsetdet_bias(0);
-		printk("[LUCKYJUN77] headset_det_work : headset_type = HUB_NONE\n");
+//For_Resume_Speed		printk("[LUCKYJUN77] headset_det_work : headset_type = HUB_NONE\n");
 		headset_type = HUB_NONE;
 		switch_set_state(&headset_sw_data->sdev, headset_type);
 		#if defined(CONFIG_NXP_HDMI)
@@ -131,21 +139,21 @@ static void headset_det_work(struct work_struct *work)
 	}
 	
 	msleep(100);
-#if 1	// 20100825 junyeop.kim@lge.com, mic bias LDO control test [START_LGE]
+#if 1	// 20100825 , mic bias LDO control test [START_LGE]
 	gpio_direction_output(MIC_BIAS_LDO, 1);
 	gpio_set_value(MIC_BIAS_LDO, 1);
-#endif	// 20100825 junyeop.kim@lge.com, mic bias LDO control test [END_LGE]
+#endif	// 20100825 , mic bias LDO control test [END_LGE]
 	
 	//hub_headsetdet_bias(1);
         
-#if defined(CONFIG_MACH_LGE_HUB_REV_A)	// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A)	// 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
    if(system_rev > 3 && gpio_get_value(headset_sw_data->dmb_ant_gpio) == 1) 
     {
 		printk("[LUCKYJUN77] headset_det_work : dmb_ant detected\n");
 		headset_sw_data->dmb_ant_detected = 1;
-		set_dmb_status(headset_sw_data->dmb_ant_detected);	//junyeop.kim@lge.com
+		set_dmb_status(headset_sw_data->dmb_ant_detected);	//
 		headset_type = HUB_NONE;
 		return;
 	}
@@ -153,7 +161,7 @@ static void headset_det_work(struct work_struct *work)
 	schedule_delayed_work(&headset_sw_data->delayed_work,	msecs_to_jiffies(type_detection_tim));
 	
 }
-#if defined(CONFIG_MACH_LGE_HEAVEN_EVB2) || defined(CONFIG_MACH_LGE_HEAVEN_REV_A) /* LGE_CHANGE_S [iggikim@lge.com] 2009-09-13, heaven evb b */
+#if defined(CONFIG_MACH_LGE_HEAVEN_EVB2) || defined(CONFIG_MACH_LGE_HEAVEN_REV_A) /* LGE_CHANGE_S [] 2009-09-13, heaven evb b */
 struct twl4030_madc_request req;
 static void type_det_work(struct work_struct *work)
 {
@@ -196,28 +204,29 @@ static void type_det_work(struct work_struct *work)
 	{
 	    if(gpio_get_value(headset_sw_data->hook_gpio) == 0) 
 	    {
-			//printk("[LUCKYJUN77] type_det_work : HUB_HEADPHONE\n");
 			headset_type = HUB_HEADPHONE;
+			//printk("[JIWON] type_det_work : HUB_HEADPHONE\n");
 		}
 		else
 		{
-			//printk("[LUCKYJUN77] type_det_work : HUB_HEADSET\n");		
 			headset_type = HUB_HEADSET;
+			//printk("[JIWON] type_det_work : HUB_HEADSET\n");		
 	}
 	}
 	else
 	{
+       	//printk("[JIWON] type_det_work : no headset\n");		
 		headset_type = HUB_NONE;
-#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]		
+#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 , dmb ant detect [START_LGE]		
 	//nothing
 #else
 		headset_sw_data->dmb_ant_detected = 0;
-		set_dmb_status(headset_sw_data->dmb_ant_detected);	//junyeop.kim@lge.com		
+		set_dmb_status(headset_sw_data->dmb_ant_detected);	//		
 #endif		
 	}
 
 
-#if defined(CONFIG_MACH_LGE_HUB_REV_A) 	// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A) 	// 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
 //	msleep(100);
@@ -226,13 +235,13 @@ static void type_det_work(struct work_struct *work)
 		printk("[LUCKYJUN77] type_det_work : dmb_ant detected\n");
 		headset_type = HUB_NONE;
 		headset_sw_data->dmb_ant_detected = 1;
-		set_dmb_status(headset_sw_data->dmb_ant_detected);	//junyeop.kim@lge.com		
+		set_dmb_status(headset_sw_data->dmb_ant_detected);	//		
 //		switch_set_state(&headset_sw_data->sdev, headset_type);		
 //		return;
 	}
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#endif	// 20100814 , dmb ant detect [START_LGE]
 
-#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 , dmb ant detect [START_LGE]
     if(headset_type == HUB_NONE){
 		//hub_headsetdet_bias(0);
 		gpio_direction_output(MIC_BIAS_LDO, 0);
@@ -253,11 +262,24 @@ static void type_det_work(struct work_struct *work)
 		gpio_direction_output(MIC_BIAS_LDO, 0);
 		gpio_set_value(MIC_BIAS_LDO, 0);
 	}
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#endif	// 20100814 , dmb ant detect [START_LGE]
 	
+ /* 20110215  for EarJack & Hook Action [START] */
+   if(headset_type == 1) 
+   	{	   
+    	IsHeadsetInserted=1;
+    	//printk("[JIWON] type_det_work : IsHeadsetInserted=1\n");
+   	}
+   else
+   	{
+    	IsHeadsetInserted=0;
+	    //printk("[JIWON] type_det_work : IsHeadsetInserted=0\n");
+   	}
+ /* 20110215  for EarJack & Hook Action [END] */
+  
 	switch_set_state(&headset_sw_data->sdev, headset_type);
 
-// 20100608 junyeop.kim@lge.com, headset event inform for hdmi [START_LGE]
+// 20100608 , headset event inform for hdmi [START_LGE]
 #if 1
 #if defined(CONFIG_NXP_HDMI)
 	if(is_hdmi_enabled() == 1)
@@ -269,11 +291,11 @@ static void type_det_work(struct work_struct *work)
 	}
 #endif
 #endif
-// 20100608 junyeop.kim@lge.com, headset event inform for hdmi [END_LGE]
+// 20100608 , headset event inform for hdmi [END_LGE]
 	
 }
 
-#if 0	//junyeop.kim@lge.com for long/short hook key 
+#if 0	// for long/short hook key 
 static void hook_det_work(struct work_struct *work)
 {
     if(headset_type != HEAVEN_HEADSET)
@@ -298,28 +320,19 @@ static void hook_det_work(struct work_struct *work)
 #else
 static void hook_det_work(struct work_struct *work)
 {
-	//printk("[LUCKYJUN77] hook_det_work\n");
-//[LGSI]Saravanan START TD116383-hook key issue in deep sleep
-/* Dont skip Hook key event eventhough you are in Sleep
-we are not holding any state in get_twl4030_status , making same as froyo*/
-#if 0
-// prime@sdcmicro.com Make the following code be conditional since get_twl4030_status() is included to CONFIG_SND_SOC_TWL4030 feature [START]
-#ifdef CONFIG_SND_SOC_TWL4030
-	if(headset_sw_data->is_suspend == 1 && get_twl4030_status() == 0)
-#else
-	if(headset_sw_data->is_suspend == 1)
-#endif
+	//printk("[JIWON] hook_det_work start\n");
 
-// prime@sdcmicro.com Make the following code be conditional since get_twl4030_status() is included to CONFIG_SND_SOC_TWL4030 feature [END]
+#if 0/*  20110121 : no hook event skip */
+	if(headset_sw_data->is_suspend == 1 && get_twl4030_status() == 0)
 	{
 		printk("[LUCKYJUN77] suspend status \n");	
 		return;
 	}
 #endif
-//[LGSI]Saravanan END TD116383-hook key issue in deep sleep
+	
     if(headset_type == HUB_HEADPHONE)	//detect type error case
     {
-    	//printk("[LUCKYJUN77] hook_det_work : headphone detect\n");
+    	//printk("[JIWON] hook_det_work : headphone -> headset\n");
 //		schedule_delayed_work(&headset_sw_data->delayed_work,	msecs_to_jiffies(type_detection_tim*3));
 		headset_type = HUB_HEADSET;
 		switch_set_state(&headset_sw_data->sdev, headset_type);
@@ -330,31 +343,34 @@ we are not holding any state in get_twl4030_status , making same as froyo*/
 		return;
 
 	if(hook_status == HOOK_RELEASED){
+			//printk("[JIWON] threshold area for hook key glitch1\n");		
 		if(gpio_get_value(headset_sw_data->hook_gpio) == 0){ 	//threshold area for hook key glitch
-			//printk("[LUCKYJUN77] threshold area for hook key glitch\n");		
+			//printk("[JIWON] threshold area for hook key glitch2\n");		
 		    hook_status = HOOK_PRESSED; 
 //		    input_report_key(headset_sw_data->ip_dev, KEY_HOOK, 1);
-			schedule_delayed_work(&headset_sw_data->hook_delayed_work,	msecs_to_jiffies(type_detection_tim/8));
+			schedule_delayed_work(&headset_sw_data->hook_delayed_work,	msecs_to_jiffies(10 /*type_detection_tim/8*/)); /* 20110215  for EarJack & Hook Action */
 		}
 	}
 	else{
 		if(gpio_get_value(headset_sw_data->hook_gpio) == 0){ 
-			printk("[LUCKYJUN77] HOOK_PRESSED\n");
+			printk("[JIWON] HOOK_PRESSED\n");
 		    input_report_key(headset_sw_data->ip_dev, KEY_HOOK, 1);		    
 			input_sync(headset_sw_data->ip_dev);		    
-			schedule_delayed_work(&headset_sw_data->hook_delayed_work,	msecs_to_jiffies(type_detection_tim));			
+			schedule_delayed_work(&headset_sw_data->hook_delayed_work,	msecs_to_jiffies(hook_detection_tim)); /* 20110215  for EarJack & Hook Action */			
 		}
 		else {
 			    input_report_key(headset_sw_data->ip_dev, KEY_HOOK, 0);	
 				input_sync(headset_sw_data->ip_dev);
-				printk("[LUCKYJUN77] HOOK_RELEASED\n");				
+				printk("[JIWON] HOOK_RELEASED\n");				
 			    hook_status = HOOK_RELEASED;	
-// 20100831 jh.koo@lge.com for TEST MODE [START_LGE]
+// 20100831  for TEST MODE [START_LGE]
+#if 0 //rajesh
 			if(get_test_mode())
 			{
 				write_gkpd_value(KEY_HOOK);
 			}
-// 20100831 jh.koo@lge.com for TEST MODE [END_LGE]				
+#endif
+// 20100831  for TEST MODE [END_LGE]				
 		}
 	}
 }
@@ -367,6 +383,8 @@ static irqreturn_t headset_int_handler(int irq, void *dev_id)
 	struct headset_switch_data *switch_data =
 	    (struct headset_switch_data *)dev_id;
 
+	IsHeadsetInserted=0; /* 20110215  for EarJack & Hook Action */
+
 	schedule_work(&switch_data->work);
 	return IRQ_HANDLED;
 }
@@ -376,12 +394,22 @@ static irqreturn_t headset_hook_int_handler(int irq, void *dev_id)
 	struct headset_switch_data	*switch_data =
 	    (struct headset_switch_data *)dev_id;
 	
-	schedule_delayed_work(&switch_data->hook_delayed_work,	msecs_to_jiffies(type_detection_tim));
+
+	/* 20110215  for EarJack & Hook Action [START] */
+			if(IsHeadsetInserted ==0) 
+			{
+				//printk("[JIWON] headset_hook_int_handler: IsHeadsetInserted not set : return\n");
+				return IRQ_HANDLED;
+			}
+	/* 20110215  for EarJack & Hook Action [END] */
+
+
+    schedule_delayed_work(&switch_data->hook_delayed_work,	msecs_to_jiffies(hook_detection_tim)); /* 20110215  for EarJack & Hook Action */
 	
 	return IRQ_HANDLED;
 }
 
-#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
 static irqreturn_t dmb_ant_int_handler(int irq, void *dev_id)
@@ -410,7 +438,7 @@ static irqreturn_t dmb_ant_int_handler(int irq, void *dev_id)
 	
 	return IRQ_HANDLED;
 }
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+#endif	// 20100814 , dmb ant detect [END_LGE]
 
 static ssize_t switch_gpio_print_state(struct switch_dev *sdev, char *buf)
 {
@@ -447,20 +475,20 @@ static int headsetdet_probe(struct platform_device *pdev)
 	switch_data->sdev.print_state = switch_gpio_print_state;
 
     switch_data->hook_gpio = 163;
-#if defined(CONFIG_MACH_LGE_HUB_REV_A)	// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A)	// 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
 	switch_data->dmb_ant_gpio = 164;
 	switch_data->dmb_ant_detected = 0;
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+#endif	// 20100814 , dmb ant detect [END_LGE]
 
     ret = switch_dev_register(&switch_data->sdev);
 	if (ret < 0)
 		goto err_switch_dev_register;
 
-	omap_mux_init_gpio(switch_data->gpio, OMAP_PIN_INPUT_PULLDOWN | OMAP_PIN_OFF_WAKEUPENABLE);	//20101004 junyeop.kim@lge.com, ear sense wakable setting
+	omap_mux_init_gpio(switch_data->gpio, OMAP_PIN_INPUT_PULLDOWN | OMAP_PIN_OFF_WAKEUPENABLE);	//20101004 , ear sense wakable setting
 
-#if 1	//20101109 junyeop.kim@lge.com, hook key wakable setting
+#if 1	//20101109 , hook key wakable setting
 	omap_mux_init_gpio(switch_data->hook_gpio, OMAP_PIN_INPUT_PULLUP | OMAP_PIN_OFF_WAKEUPENABLE);	
 #endif
 
@@ -468,11 +496,11 @@ static int headsetdet_probe(struct platform_device *pdev)
 
 	ret = gpio_request(switch_data->hook_gpio, pdev->name);
 
-#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A) // 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
 	ret = gpio_request(switch_data->dmb_ant_gpio, pdev->name);
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+#endif	// 20100814 , dmb ant detect [END_LGE]
 
 	if (ret < 0)
 		goto err_request_gpio;
@@ -481,11 +509,11 @@ static int headsetdet_probe(struct platform_device *pdev)
 
 	ret = gpio_direction_input(switch_data->hook_gpio);
 
-#if defined(CONFIG_MACH_LGE_HUB_REV_A)	|| defined(CONFIG_MACH_LGE_HUB_REV_B)// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB_REV_A)	|| defined(CONFIG_MACH_LGE_HUB_REV_B)// 20100814 , dmb ant detect [START_LGE]
 	//nothing
 #else
 	ret = gpio_direction_input(switch_data->dmb_ant_gpio);
-#endif	// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+#endif	// 20100814 , dmb ant detect [END_LGE]
 
 	if (ret < 0)
 		goto err_set_gpio_input;
@@ -494,7 +522,7 @@ static int headsetdet_probe(struct platform_device *pdev)
     
 	switch_data->ip_dev = ip_dev;
 
-	switch_data->ip_dev->name = "Hookkey";	//20100830, junyeop.kim@lge.com, define the input dev name
+	switch_data->ip_dev->name = "Hookkey";	//20100830, , define the input dev name
 	
 	set_bit(EV_SYN, switch_data->ip_dev->evbit);
 	set_bit(EV_KEY, switch_data->ip_dev->evbit);
@@ -508,20 +536,20 @@ static int headsetdet_probe(struct platform_device *pdev)
 
 	switch_data->irq = gpio_to_irq(switch_data->gpio);
 	switch_data->hook_irq = gpio_to_irq(switch_data->hook_gpio);
-// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]	
+// 20100814 , dmb ant detect [START_LGE]	
 #if defined(CONFIG_MACH_LGE_HUB_REV_A) 
 	//nothing
 #else
-	switch_data->dmb_ant_irq = gpio_to_irq(switch_data->dmb_ant_gpio);	// 20100814 junyeop.kim@lge.com, dmb ant gpio [START_LGE]
+	switch_data->dmb_ant_irq = gpio_to_irq(switch_data->dmb_ant_gpio);	// 20100814 , dmb ant gpio [START_LGE]
 #endif	
-// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+// 20100814 , dmb ant detect [END_LGE]
 	
 	if (switch_data->irq < 0) {
 		ret = switch_data->irq;
 		goto err_detect_irq_num_failed;
 	}
 
-#if 1		//20101004 junyeop.kim@lge.com, ear sense wakable setting
+#if 1		//20101004 , ear sense wakable setting
 	/* Make the interrupt on wake up OMAP which is in suspend mode */		
 	ret = enable_irq_wake(switch_data->irq);		
 	if(ret < 0){
@@ -531,7 +559,7 @@ static int headsetdet_probe(struct platform_device *pdev)
 	}
 #endif			
 
-#if 1		//20101109 junyeop.kim@lge.com, hook key wakable setting
+#if 1		//20101109 , hook key wakable setting
 	/* Make the interrupt on wake up OMAP which is in suspend mode */		
 	ret = enable_irq_wake(switch_data->hook_irq);		
 	if(ret < 0){
@@ -553,7 +581,7 @@ static int headsetdet_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_request_irq;
 			  
-// 20100825 junyeop.kim@lge.com, mic bias LDO control test [START_LGE]
+// 20100825 , mic bias LDO control test [START_LGE]
 #if 1
 	omap_mux_init_gpio(MIC_BIAS_LDO, OMAP_PIN_OUTPUT);
 	ret = gpio_request(MIC_BIAS_LDO,  pdev->name);
@@ -562,16 +590,16 @@ static int headsetdet_probe(struct platform_device *pdev)
 		goto err_request_gpio;
 	}
 #endif
-// 20100825 junyeop.kim@lge.com, mic bias LDO control test [END_LGE]
+// 20100825 , mic bias LDO control test [END_LGE]
 
-// 20100814 junyeop.kim@lge.com, dmb ant detect [START_LGE]
+// 20100814 , dmb ant detect [START_LGE]
 #if defined(CONFIG_MACH_LGE_HUB_REV_A) 
 	//nothing
 #else
     ret = request_irq(switch_data->dmb_ant_irq, dmb_ant_int_handler,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "dmb_ant", switch_data);
 #endif
-// 20100814 junyeop.kim@lge.com, dmb ant detect [END_LGE]
+// 20100814 , dmb ant detect [END_LGE]
 
 	/* Perform initial detection */
 	headset_sw_data = switch_data;
@@ -580,14 +608,14 @@ static int headsetdet_probe(struct platform_device *pdev)
 	
 	headset_det_work(&switch_data->work);
 
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
+// 20100603 , headset suspend/resume [START_LGE]
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	switch_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 2;
 	switch_data->early_suspend.suspend = headsetdet_early_suspend;
 	switch_data->early_suspend.resume = headsetdet_late_resume;
 	register_early_suspend(&switch_data->early_suspend);
 #endif
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [END_LGE]	
+// 20100603 , headset suspend/resume [END_LGE]	
 
 	return 0;
 
@@ -614,7 +642,7 @@ static int headsetdet_remove(struct platform_device *pdev)
 #if defined(CONFIG_MACH_LGE_HUB_REV_A)
 	//nothing
 #else	
-	gpio_free(switch_data->dmb_ant_gpio);	// 20100814 junyeop.kim@lge.com, dmb ant gpio [START_LGE]	
+	gpio_free(switch_data->dmb_ant_gpio);	// 20100814 , dmb ant gpio [START_LGE]	
 #endif
     switch_dev_unregister(&switch_data->sdev);
 	input_unregister_device(switch_data->ip_dev);
@@ -623,7 +651,7 @@ static int headsetdet_remove(struct platform_device *pdev)
 	return 0;
 }
 
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
+// 20100603 , headset suspend/resume [START_LGE]
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void headsetdet_early_suspend(struct early_suspend *h)
 {
@@ -637,14 +665,14 @@ static void headsetdet_late_resume(struct early_suspend *h)
 {
 //For_Resume_Speed	printk("[LUCKYJUN77] headsetdet_late_resume\n");
 
-	headset_det_work(&headset_sw_data->work);
+	//headset_det_work(&headset_sw_data->work); /* Do not need to check */
 
 //	enable_irq(headset_sw_data->gpio);		    
 //	enable_irq(headset_sw_data->hook_irq);
 	headset_sw_data->is_suspend = 0;	//resume flag
 }
 #endif
-// 20100603 junyeop.kim@lge.com, headset suspend/resume [END_LGE]
+// 20100603 , headset suspend/resume [END_LGE]
 
 static int headsetdet_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -658,7 +686,7 @@ static int headsetdet_resume(struct platform_device *pdev)
 
 #if defined(CONFIG_HUB_AMP_WM9093)
 	unsigned int cur_device = get_wm9093_mode();
-#if 1
+#if 0 /* no need to send hook when wake up */
 	if(headset_type == HUB_HEADSET && cur_device == 6 && gpio_get_value(headset_sw_data->hook_gpio) == 0)
 	{
 		input_report_key(headset_sw_data->ip_dev, KEY_HOOK, 1);		    
@@ -697,7 +725,7 @@ static void __exit headsetdet_exit(void)
 	platform_driver_unregister(&headsetdet_driver);
 }
 
-late_initcall(headsetdet_init); /* LGE_CHANGE_S [iggikim@lge.com] 2009-11-10, rev a headset */
+late_initcall(headsetdet_init); /* LGE_CHANGE_S [] 2009-11-10, rev a headset */
 module_exit(headsetdet_exit);
 
 MODULE_AUTHOR("LG Electronics");

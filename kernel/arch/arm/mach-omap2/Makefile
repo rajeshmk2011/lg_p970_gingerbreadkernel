@@ -189,7 +189,8 @@ obj-$(CONFIG_MACH_LGE_HUB)		+= board-hub.o \
 					   board-hub-debug.o \
 					   board-hub-ers.o \
 					   board-sniper-mmc.o \
-					   hsmmc.o
+					   hsmmc.o \
+                                           lge_cmdline.o
 # LGE_CHANGE_S, bae.cheolhwan@lge.com, 2011-03-26, Modify for AT%FBOOT & AT%SWVCHECK.
 #110111 dongjin.sim@lge.com %SWV AP [START]
 obj-$(CONFIG_MACH_LGE_HUB)		+= lge_emmc_direct_access.o					   
